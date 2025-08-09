@@ -263,7 +263,42 @@
     postBtn.addEventListener('click',()=>{const t=msgInput.value.trim();if(!t)return alert('写点话');const arr=JSON.parse(localStorage.getItem('apology_wall_v2')||'[]');arr.unshift({name:'你',text:t,t:new Date().toISOString()});localStorage.setItem('apology_wall_v2',JSON.stringify(arr.slice(0,50)));msgInput.value='';loadWall();anime({targets:'#wall .msg:first-child',translateY:[-20,0],opacity:[0,1],duration:700,easing:'easeOutExpo'})})
     clearWallBtn.addEventListener('click',()=>{if(confirm('清空留言？')){localStorage.removeItem('apology_wall_v2');loadWall()}})
 
-    function spawnHeart(){const el=document.createElement('div');el.className='heart';const icons=['💗','💝','💕','💓','💖'];el.innerHTML=icons[Math.floor(Math.random()*icons.length)];const w=game.clientWidth,h=game.clientHeight;const left=Math.random()*(Math.max(w-36,0)),top=Math.random()*(Math.max(h-36,0));el.style.left=left+'px';el.style.top=top+'px';game.appendChild(el);el.style.opacity=0;anime({targets:el,opacity:[0,1],duration:300});const t=setTimeout(()=>{if(el.parentElement)el.remove()},7000);el.addEventListener('click',()=>{clearTimeout(t);el.remove();hearts++;localStorage.setItem('apology_hearts_v2',hearts);heartCountEl.textContent=hearts;runConfetti(20);if(hearts>=12){typeAndSpeak('你集齐了12颗心，这是一份专属彩蛋：谢谢你一直在。');runConfetti(120);hearts=0;localStorage.setItem('apology_hearts_v2',hearts);heartCountEl.textContent=hearts}})}
+function spawnHeart(){
+        const el=document.createElement('div');
+        el.className='heart';
+        const icons=['💗','💝','💕','💓','💖'];
+        // pick a random heart icon
+        el.innerHTML=icons[Math.floor(Math.random()*icons.length)];
+        // explicitly set a visible colour so the heart emoji shows on dark backgrounds
+        el.style.color='#ff6b8a';
+        const w=game.clientWidth;
+        const h=game.clientHeight;
+        const left=Math.random()*(Math.max(w-36,0));
+        const top=Math.random()*(Math.max(h-36,0));
+        el.style.left=left+'px';
+        el.style.top=top+'px';
+        game.appendChild(el);
+        el.style.opacity=0;
+        anime({targets:el,opacity:[0,1],duration:300});
+        const t=setTimeout(()=>{
+            if(el.parentElement)el.remove();
+        },7000);
+        el.addEventListener('click',()=>{
+            clearTimeout(t);
+            el.remove();
+            hearts++;
+            localStorage.setItem('apology_hearts_v2',hearts);
+            heartCountEl.textContent=hearts;
+            runConfetti(20);
+            if(hearts>=12){
+                typeAndSpeak('你集齐了12颗心，这是一份专属彩蛋：谢谢你一直在。');
+                runConfetti(120);
+                hearts=0;
+                localStorage.setItem('apology_hearts_v2',hearts);
+                heartCountEl.textContent=hearts;
+            }
+        });
+    }
     spawnBtn.addEventListener('click',()=>{for(let i=0;i<4;i++)spawnHeart()})
     for(let i=0;i<5;i++)spawnHeart()
 
@@ -285,9 +320,111 @@
     refuseBtn.addEventListener('mouseenter',()=>{anime({targets:refu=refuseBtn.parentElement,translateX:(Math.random()-0.5)*320,translateY:(Math.random()-0.5)*140,duration:420,easing:'easeOutExpo'})})
     refuseBtn.addEventListener('click',()=>{alert('你真会玩——但我不会放弃改正自己的机会。')})
 
-    function runConfetti(n=80,rect){const root=$('fx');for(let i=0;i<n;i++){const el=document.createElement('div');const size=6+Math.random()*12;el.style.position='fixed';el.style.left=rect?(rect.left+Math.random()*rect.width)+'px':(Math.random()*100)+'%';el.style.top=rect?(rect.top+Math.random()*rect.height)+'px':'-10%';el.style.width=size+'px';el.style.height=(size*1.8)+'px';el.style.background=`hsl(${Math.floor(Math.random()*360)},70%,60%)`;el.style.borderRadius='2px';root.appendChild(el);animateDOM(el,{translateY:[0,window.innerHeight+200],rotate:Math.random()*720},1000+Math.random()*1000,()=>el.remove())}}
-    function animateDOM(el,props,duration,cb){const start=performance.now();function step(now){const p=Math.min(1,(now-start)/duration);const prog=ease(p,opts.easing||'linear');for(const t of targets){if(opts.translateX)t.style.transform=`translateX(${opts.translateX[0]+(opts.translateX[1]-opts.translateX[0])*prog}px) translateY(${opts.translateY?opts.translateY[0]+(opts.translateY[1]-opts.translateY[0])*prog:0}px)`;if(opts.opacity!==undefined)t.style.opacity=opts.opacity[0]+(opts.opacity[1]-opts.opacity[0])*prog; if(opts.rotate!==undefined)t.style.transform+=` rotate(${(opts.rotate[0]+(opts.rotate[1]-opts.rotate[0])*prog)}deg)`}if(p<1)requestAnimationFrame(step);else if(opts.complete)opts.complete()}requestAnimationFrame(step)}
-    function ease(p,name){if(name==='easeOutExpo')return(p===1)?1:1-Math.pow(2,-10*p);if(name==='easeOutCubic')return 1-Math.pow(1-p,3);return p}
+    function runConfetti(n=80,rect){
+        const root=$('fx');
+        for(let i=0;i<n;i++){
+            const el=document.createElement('div');
+            const size=6+Math.random()*12;
+            el.style.position='fixed';
+            el.style.left=rect?(rect.left+Math.random()*rect.width)+'px':(Math.random()*100)+'%';
+            el.style.top=rect?(rect.top+Math.random()*rect.height)+'px':'-10%';
+            el.style.width=size+'px';
+            el.style.height=(size*1.8)+'px';
+            el.style.background=`hsl(${Math.floor(Math.random()*360)},70%,60%)`;
+            el.style.borderRadius='2px';
+            root.appendChild(el);
+            animateDOM(el,{translateY:[0,window.innerHeight+200],rotate:Math.random()*720},1000+Math.random()*1000,()=>el.remove());
+        }
+    }
+
+    // Lightweight animation helper similar to anime.js
+    function anime(opts){
+        // Determine target elements based on selector, NodeList, array or single element
+        let targetList=[];
+        const t=opts.targets;
+        if(typeof t==='string'){
+            targetList=Array.from(document.querySelectorAll(t));
+        }else if(t instanceof NodeList || Array.isArray(t)){
+            targetList=Array.from(t);
+        }else if(t){
+            targetList=[t];
+        }
+        const duration=opts.duration||600;
+        const start=performance.now();
+        function step(now){
+            const p=Math.min(1,(now-start)/duration);
+            const prog=ease(p,opts.easing||'linear');
+            targetList.forEach(el=>{
+                let transform='';
+                if(opts.translateX){
+                    const x=opts.translateX[0]+(opts.translateX[1]-opts.translateX[0])*prog;
+                    const y=opts.translateY?opts.translateY[0]+(opts.translateY[1]-opts.translateY[0])*prog:0;
+                    transform+=`translateX(${x}px) translateY(${y}px)`;
+                }
+                if(opts.rotate!==undefined){
+                    let rot;
+                    if(Array.isArray(opts.rotate)){
+                        rot=opts.rotate[0]+(opts.rotate[1]-opts.rotate[0])*prog;
+                    }else{
+                        rot=opts.rotate*prog;
+                    }
+                    transform+=` rotate(${rot}deg)`;
+                }
+                if(transform) el.style.transform=transform;
+                if(opts.opacity!==undefined){
+                    el.style.opacity=opts.opacity[0]+(opts.opacity[1]-opts.opacity[0])*prog;
+                }
+            });
+            if(p<1){
+                requestAnimationFrame(step);
+            }else{
+                if(opts.complete) opts.complete();
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    // Simple DOM animation helper for confetti pieces
+    function animateDOM(el,props,duration,cb){
+        const start=performance.now();
+        function step(now){
+            const p=Math.min(1,(now-start)/duration);
+            const prog=ease(p, props.easing||'linear');
+            let transform='';
+            if(props.translateX){
+                const x=props.translateX[0] + (props.translateX[1]-props.translateX[0]) * prog;
+                const y=props.translateY ? props.translateY[0] + (props.translateY[1]-props.translateY[0]) * prog : 0;
+                transform += `translateX(${x}px) translateY(${y}px)`;
+            }
+            if(props.rotate!==undefined){
+                let rot;
+                if(Array.isArray(props.rotate)){
+                    rot = props.rotate[0] + (props.rotate[1]-props.rotate[0]) * prog;
+                } else {
+                    rot = props.rotate * prog;
+                }
+                transform += ` rotate(${rot}deg)`;
+            }
+            if(transform){
+                el.style.transform = transform;
+            }
+            if(props.opacity!==undefined){
+                el.style.opacity = props.opacity[0] + (props.opacity[1]-props.opacity[0]) * prog;
+            }
+            if(p<1){
+                requestAnimationFrame(step);
+            }else{
+                if(cb) cb();
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    function ease(p,name){
+        if(name==='easeOutExpo') return (p===1)?1:1-Math.pow(2,-10*p);
+        if(name==='easeOutCubic') return 1-Math.pow(1-p,3);
+        return p;
+    }
 
     (function boot(){apologyText=localStorage.getItem('apology_text_v2')||DEFAULT_TEXT;renderPreview();hearts=parseInt(localStorage.getItem('apology_hearts_v2')||'0',10);heartCountEl.textContent=hearts})()
   </script>
