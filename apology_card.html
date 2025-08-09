@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>姐姐我错了</title>
+  <style>
+    :root{
+      --accent:#ff5f85;
+      --bg0:#05040a;
+      --bg1:#0b0820;
+      --glass:rgba(255,255,255,0.03);
+      --cardw:1180px;
+      --text:#fff;
+      --ok:#7be18b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg0),var(--bg1));font-family:"Microsoft YaHei",Segoe UI,Arial;color:var(--text);-webkit-font-smoothing:antialiased}
+    .stage{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden}
+    canvas.bg{position:fixed;inset:0;z-index:0;display:block}
+    .fx{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:60}
+    .container{position:relative;z-index:10;width:min(var(--cardw),96%);display:grid;grid-template-columns:1fr 440px;gap:18px;padding:22px;border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 30px 80px rgba(0,0,0,0.6);backdrop-filter: blur(6px)}
+    @media(max-width:980px){.container{grid-template-columns:1fr}}
+    .header h1{margin:0;font-size:30px}
+    .box{background:var(--glass);padding:12px;border-radius:12px}
+    #typeArea{min-height:230px;padding:14px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.008));overflow:auto}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{background:var(--accent);border:0;color:#fff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 10px 30px rgba(255,95,133,0.12)}
+    .btn.alt{background:transparent;border:1.2px solid rgba(255,255,255,0.06);color:#fff}
+    .btn.small{padding:8px 10px;font-size:13px;border-radius:10px}
+    aside{display:flex;flex-direction:column;gap:12px}
+    #sig{width:100%;height:160px;border-radius:10px;background:#fff;border:1px dashed rgba(0,0,0,0.06);touch-action:none}
+    .mini{font-size:13px;color:rgba(255,255,255,0.75)}
+    #wall{max-height:170px;overflow:auto;border-radius:8px;padding:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005))}
+    .msg{padding:8px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));margin-bottom:8px;color:#fff}
+    #game{height:180px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));position:relative;overflow:hidden}
+    .heart{position:absolute;font-size:28px;cursor:pointer;user-select:none}
+    #line{height:1px;background:rgba(255,255,255,0.03);margin:12px 0;border-radius:4px}
+    #viz{display:flex;gap:6px;height:56px;margin-top:8px}
+    .vbar{flex:1;background:linear-gradient(180deg,#ff9ab3,#ff5577);height:6px;border-radius:6px;transition:height 80ms}
+    .cursor{display:inline-block;width:2px;height:1em;background:var(--accent);vertical-align:middle;margin-left:6px;animation:blink 1s steps(2,end) infinite}
+    @keyframes blink{50%{opacity:0}}
+    .toast{position:fixed;left:50%;bottom:8%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:#fff;padding:8px 12px;border-radius:8px;z-index:120;font-size:14px;display:none}
+    .linkArea{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    input[type=text], textarea{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;background:#fff;color:#111;padding:12px;border-radius:10px;display:none;max-width:92%;max-height:80%;overflow:auto}
+    .modal.open{display:block}
+    .modal .close{margin-top:8px;background:#eee;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .codeBox{width:100%;height:140px;resize:none;border:1px solid #ddd;padding:8px;border-radius:8px;font-family:monospace}
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <canvas id="bgCanvas" class="bg"></canvas>
+    <div id="fx" class="fx"></div>
+
+    <div class="container" role="main">
+      <div>
+        <div class="header">
+          <h1>姐姐我错了 — 我想认真向你道歉</h1>
+        </div>
+
+        <div class="box" style="margin-top:12px">
+          <div id="typeArea" aria-live="polite"></div>
+
+          <div class="controls">
+            <button class="btn" id="playBtn">逐句朗读并逐字显示</button>
+            <button class="btn alt" id="editBtn">编辑文案</button>
+            <button class="btn" id="saveBtn">保存草稿</button>
+            <button class="btn alt" id="resetBtn">恢复默认</button>
+
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <button class="btn" id="recBtn">录一段话（本地）</button>
+              <button class="btn alt small" id="playRecBtn" disabled>播放录音</button>
+            </div>
+          </div>
+
+          <div id="line"></div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <div class="mini">已收集心：<strong id="heartCount">0</strong></div>
+            <div style="margin-left:auto" class="mini">草稿已保存：<span id="savedFlag">否</span></div>
+          </div>
+
+          <div id="line"></div>
+
+          <div style="display:grid;grid-template-columns:1fr 240px;gap:12px;margin-top:10px">
+            <div>
+              <div class="mini">留言墙</div>
+              <div id="wall"></div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <input id="msgInput" placeholder="写点想说的话..." />
+                <button class="btn small" id="postBtn">发布</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="mini">小游戏</div>
+              <div id="game"></div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn small" id="spawnBtn">刷新心</button>
+                <button class="btn alt small" id="clearWallBtn">清留言</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" class="linkArea">
+            <button class="btn" id="genCodeBtn">生成分享代码</button>
+            <button class="btn alt" id="copyCodeBtn">复制分享代码</button>
+            <button class="btn small" id="openImportBtn">导入分享代码</button>
+            <input type="text" id="linkBox" style="min-width:240px;display:none" readonly/>
+          </div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>签名 & 合成卡片</strong><div class="mini">在下方签名</div></div>
+            <div class="mini">可选择包含签名</div>
+          </div>
+
+          <canvas id="sig"></canvas>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn small" id="clearSigBtn">清除签名</button>
+            <button class="btn alt small" id="genCardBtn">合成并下载卡片</button>
+          </div>
+
+          <div id="line" style="margin-top:10px"></div>
+
+          <div>
+            <div class="mini">录音实时频谱</div>
+            <div id="viz"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn" id="appealBtn">请求原谅</button>
+            <div class="escape"><button class="btn alt" id="refuseBtn">拒绝原谅</button></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast">已复制</div>
+
+    <div class="modal" id="importModal" aria-hidden="true">
+      <textarea id="importBox" class="codeBox" placeholder=""></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="doImportBtn">导入</button>
+        <button class="modal close" id="closeImportBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function $(id){return document.getElementById(id)}
+    function showToast(msg,t=1200){const e=$('toast');e.textContent=msg;e.style.display='block';setTimeout(()=>e.style.display='none',t)}
+    function b64EncodeUnicode(s){return btoa(encodeURIComponent(s).replace(/%([0-9A-F]{2})/g,function(m,p){return String.fromCharCode('0x'+p)}))}
+    function b64DecodeUnicode(s){return decodeURIComponent(Array.prototype.map.call(atob(s),function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)}).join(''))}
+    function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    const DEFAULT_TEXT = `姐姐我错了，那天我冲动，说了不该说的话，让你难受了。
+一句“对不起”不够，我想用行动证明：
+1）我会先认真听你，再回应；
+2）遇事先冷静五秒；
+3）线上也会更用心沟通。
+请给我一次机会，我会用时间换回你的信任。`;
+
+    let apologyText = localStorage.getItem('apology_text_v2')||DEFAULT_TEXT;
+    let hearts = parseInt(localStorage.getItem('apology_hearts_v2')||'0',10);
+    let audioChunks=[],audioURL=null,mediaStream=null,mediaRecorder=null,audioCtx=null,analyser=null,rafViz=null;
+
+    const typeArea=$('typeArea');
+    const playBtn=$('playBtn'),editBtn=$('editBtn'),saveBtn=$('saveBtn'),resetBtn=$('resetBtn');
+    const recBtn=$('recBtn'),playRecBtn=$('playRecBtn');
+    const sigCanvas=$('sig'),sigCtx=sigCanvas.getContext('2d');
+    const clearSigBtn=$('clearSigBtn'),genCardBtn=$('genCardBtn');
+    const viz=$('viz');
+    const wall=$('wall'),postBtn=$('postBtn'),msgInput=$('msgInput'),clearWallBtn=$('clearWallBtn');
+    const game=$('game'),spawnBtn=$('spawnBtn'),heartCountEl=$('heartCount');
+    const genCodeBtn=$('genCodeBtn'),copyCodeBtn=$('copyCodeBtn'),openImportBtn=$('openImportBtn'),linkBox=$('linkBox');
+    const importModal=$('importModal'),importBox=$('importBox'),doImportBtn=$('doImportBtn'),closeImportBtn=$('closeImportBtn');
+    const appealBtn=$('appealBtn'),refuseBtn=$('refuseBtn'),savedFlag=$('savedFlag');
+
+    function renderPreview(){typeArea.innerHTML='';const d=document.createElement('div');d.style.whiteSpace='pre-wrap';d.textContent=apologyText;typeArea.appendChild(d)}
+    function setSaved(v){savedFlag&&(savedFlag.textContent=v?'是':'否')}
+    renderPreview();setSaved(!!localStorage.getItem('apology_text_v2'));heartCountEl.textContent=hearts
+
+    function typeAndSpeak(text){
+      typeArea.innerHTML='';
+      const lines=text.split('\n');
+      let idx=0;
+      function next(){
+        if(idx>=lines.length)return;
+        const line=lines[idx];
+        const div=document.createElement('div');
+        div.style.marginBottom='10px';
+        typeArea.appendChild(div);
+        let i=0;
+        (function tick(){
+          if(i<=line.length){
+            div.innerHTML=escapeHtml(line.slice(0,i))+'<span class="cursor"></span>';
+            i++;
+            setTimeout(tick,18+Math.random()*30);
+          }else{
+            try{
+              if('speechSynthesis' in window){
+                const u=new SpeechSynthesisUtterance(line||'...');
+                u.lang='zh-CN';
+                u.rate=1;
+                speechSynthesis.cancel();
+                speechSynthesis.speak(u);
+              }
+            }catch(e){}
+            idx++;
+            setTimeout(next,420);
+          }
+        })();
+      }
+      next();
+    }
+
+    playBtn.addEventListener('click',()=>typeAndSpeak(apologyText));
+    editBtn.addEventListener('click',()=>{
+      const t=prompt('编辑',apologyText);
+      if(t!==null){apologyText=t.trim()||DEFAULT_TEXT;localStorage.setItem('apology_text_v2',apologyText);renderPreview();setSaved(true);showToast('已保存')}
+    });
+    saveBtn.addEventListener('click',()=>{localStorage.setItem('apology_text_v2',apologyText);setSaved(true);showToast('已保存')});
+    resetBtn.addEventListener('click',()=>{if(confirm('恢复默认？')){apologyText=DEFAULT_TEXT;localStorage.setItem('apology_text_v2',apologyText);renderPreview();setSaved(true)}});
+
+    function fitSig(){const r=sigCanvas.getBoundingClientRect();const ratio=window.devicePixelRatio||1;sigCanvas.width=r.width*ratio;sigCanvas.height=r.height*ratio;sigCanvas.style.width=r.width+'px';sigCanvas.style.height=r.height+'px';sigCtx.setTransform(ratio,0,0,ratio,0,0);clearSig()}
+    window.addEventListener('resize',fitSig);
+    fitSig();
+    function clearSig(){const w=sigCanvas.width/(window.devicePixelRatio||1);const h=sigCanvas.height/(window.devicePixelRatio||1);sigCtx.fillStyle='#fff';sigCtx.fillRect(0,0,w,h)}
+    let drawing=false,lx=0,ly=0;
+    function pos(e){const r=sigCanvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top}}
+    sigCanvas.addEventListener('pointerdown',e=>{drawing=true;const p=pos(e);lx=p.x;ly=p.y})
+    sigCanvas.addEventListener('pointermove',e=>{if(!drawing)return;const p=pos(e);sigCtx.strokeStyle='#111';sigCtx.lineWidth=2.8;sigCtx.lineJoin='round';sigCtx.lineCap='round';sigCtx.beginPath();sigCtx.moveTo(lx,ly);sigCtx.lineTo(p.x,p.y);sigCtx.stroke();lx=p.x;ly=p.y})
+    sigCanvas.addEventListener('pointerup',()=>{drawing=false})
+    clearSigBtn.addEventListener('click',()=>clearSig())
+
+    const vizBars=[];
+    for(let i=0;i<20;i++){const b=document.createElement('div');b.className='vbar';b.style.height='6px';b.style.width='100%';viz.appendChild(b);vizBars.push(b)}
+    async function initMic(){if(mediaStream)return mediaStream;mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});return mediaStream}
+    recBtn.addEventListener('click',async()=>{
+      try{
+        await initMic();
+        if(!mediaRecorder||mediaRecorder.state==='inactive'){
+          audioChunks=[];mediaRecorder=new MediaRecorder(mediaStream);
+          mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+          mediaRecorder.onstop=()=>{const blob=new Blob(audioChunks,{type:'audio/wav'});audioURL=URL.createObjectURL(blob);playRecBtn.disabled=false;showToast('录音完成')};
+          mediaRecorder.start();recBtn.textContent='停止录音';startViz(mediaStream);
+        }else{mediaRecorder.stop();recBtn.textContent='录一段话（本地）';stopViz()}
+      }catch(e){alert('无法访问麦克风')}
+    });
+    playRecBtn.addEventListener('click',()=>{if(!audioURL)return alert('没有录音');new Audio(audioURL).play()})
+    function startViz(stream){if(audioCtx)return;audioCtx=new (window.AudioContext||window.webkitAudioContext)();const src=audioCtx.createMediaStreamSource(stream);analyser=audioCtx.createAnalyser();analyser.fftSize=256;src.connect(analyser);const data=new Uint8Array(analyser.frequencyBinCount);function loop(){analyser.getByteFrequencyData(data);for(let i=0;i<vizBars.length;i++){const v=data[i*2]||0;vizBars[i].style.height=Math.max(6,(v/255)*56)+'px'}rafViz=requestAnimationFrame(loop)}loop()}
+    function stopViz(){if(rafViz)cancelAnimationFrame(rafViz);if(analyser){analyser.disconnect();analyser=null}if(audioCtx){audioCtx.close();audioCtx=null}vizBars.forEach(b=>b.style.height='6px')}
+
+    function loadWall(){const arr=JSON.parse(localStorage.getItem('apology_wall_v2')||'[]');wall.innerHTML='';for(const m of arr){const d=document.createElement('div');d.className='msg';d.innerHTML=`<div style="font-weight:700">${escapeHtml(m.name||'你')}</div><div style="margin-top:6px">${escapeHtml(m.text)}</div><div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px">${new Date(m.t).toLocaleString()}</div>`;wall.appendChild(d)}}
+    loadWall();
+    postBtn.addEventListener('click',()=>{const t=msgInput.value.trim();if(!t)return alert('写点话');const arr=JSON.parse(localStorage.getItem('apology_wall_v2')||'[]');arr.unshift({name:'你',text:t,t:new Date().toISOString()});localStorage.setItem('apology_wall_v2',JSON.stringify(arr.slice(0,50)));msgInput.value='';loadWall();anime({targets:'#wall .msg:first-child',translateY:[-20,0],opacity:[0,1],duration:700,easing:'easeOutExpo'})})
+    clearWallBtn.addEventListener('click',()=>{if(confirm('清空留言？')){localStorage.removeItem('apology_wall_v2');loadWall()}})
+
+    function spawnHeart(){const el=document.createElement('div');el.className='heart';const icons=['💗','💝','💕','💓','💖'];el.innerHTML=icons[Math.floor(Math.random()*icons.length)];const w=game.clientWidth,h=game.clientHeight;const left=Math.random()*(Math.max(w-36,0)),top=Math.random()*(Math.max(h-36,0));el.style.left=left+'px';el.style.top=top+'px';game.appendChild(el);el.style.opacity=0;anime({targets:el,opacity:[0,1],duration:300});const t=setTimeout(()=>{if(el.parentElement)el.remove()},7000);el.addEventListener('click',()=>{clearTimeout(t);el.remove();hearts++;localStorage.setItem('apology_hearts_v2',hearts);heartCountEl.textContent=hearts;runConfetti(20);if(hearts>=12){typeAndSpeak('你集齐了12颗心，这是一份专属彩蛋：谢谢你一直在。');runConfetti(120);hearts=0;localStorage.setItem('apology_hearts_v2',hearts);heartCountEl.textContent=hearts}})}
+    spawnBtn.addEventListener('click',()=>{for(let i=0;i<4;i++)spawnHeart()})
+    for(let i=0;i<5;i++)spawnHeart()
+
+    function getSigScaled(maxW=420){const srcW=sigCanvas.width/(window.devicePixelRatio||1),srcH=sigCanvas.height/(window.devicePixelRatio||1);const tmp=document.createElement('canvas');const ratio=Math.min(1,maxW/srcW);tmp.width=Math.round(srcW*ratio);tmp.height=Math.round(srcH*ratio);const g=tmp.getContext('2d');g.drawImage(sigCanvas,0,0,tmp.width,tmp.height);const d=g.getImageData(0,0,tmp.width,tmp.height).data;let nonwhite=false;for(let i=0;i<d.length;i+=4){if(d[i]<250||d[i+1]<250||d[i+2]<250){nonwhite=true;break}}if(!nonwhite)return'';return tmp.toDataURL('image/png')}
+    function generatePayload(includeSig=true){const payload={v:1,t:apologyText,hearts:hearts,time:new Date().toISOString(),wall:JSON.parse(localStorage.getItem('apology_wall_v2')||'[]').slice(0,8)};if(includeSig){const s=getSigScaled(420);if(s)payload.sig=s}return payload}
+    function makeShareCode(includeSig=true){const p=generatePayload(includeSig);return b64EncodeUnicode(JSON.stringify(p))}
+    genCodeBtn.addEventListener('click',()=>{const code=makeShareCode(true);linkBox.value=code;linkBox.style.display='inline-block';showToast('已生成')})
+    copyCodeBtn.addEventListener('click',async()=>{const code=makeShareCode(true);try{await navigator.clipboard.writeText(code);showToast('已复制')}catch(e){prompt('复制分享代码：',code)}})
+    openImportBtn.addEventListener('click',()=>{importModal.classList.add('open');importModal.setAttribute('aria-hidden','false');importBox.value='';importBox.focus()})
+    closeImportBtn.addEventListener('click',()=>{importModal.classList.remove('open');importModal.setAttribute('aria-hidden','true')})
+
+    doImportBtn.addEventListener('click',()=>{const s=importBox.value.trim();if(!s)return alert('粘贴代码');try{const json=b64DecodeUnicode(s);const obj=JSON.parse(json);if(!obj||!obj.t)return alert('无效');apologyText=obj.t||DEFAULT_TEXT;renderPreview();setSaved(false);if(Array.isArray(obj.wall)&&obj.wall.length){localStorage.setItem('apology_wall_v2',JSON.stringify(obj.wall));loadWall()}if(obj.sig){const img=new Image();img.onload=()=>{const w=sigCanvas.width/(window.devicePixelRatio||1);const h=sigCanvas.height/(window.devicePixelRatio||1);sigCtx.clearRect(0,0,w,h);sigCtx.drawImage(img,0,0,w,h)};img.src=obj.sig}hearts=parseInt(obj.hearts||'0',10);heartCountEl.textContent=hearts;importModal.classList.remove('open');importModal.setAttribute('aria-hidden','true');showToast('已导入')}catch(e){alert('解析失败')}})
+
+    genCardBtn.addEventListener('click',async()=>{const W=1400,H=900;const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');const lg=g.createLinearGradient(0,0,W,H);lg.addColorStop(0,'#fff6f8');lg.addColorStop(1,'#fff2f4');g.fillStyle=lg;g.fillRect(0,0,W,H);g.fillStyle='#111';g.font='bold 56px "Microsoft YaHei"';g.fillText('姐姐我错了，对不起',80,110);g.fillStyle='#333';g.font='26px "Microsoft YaHei"';const lines=wrapText(g,apologyText,W-160);let y=170;for(const L of lines){g.fillText(L,80,y);y+=36;if(y>H-240)break}const img=new Image();img.onload=()=>{const dw=600,dh=160;g.drawImage(img,W-dw-80,H-dh-80,dw,dh);g.fillStyle='#666';g.font='18px "Microsoft YaHei"';g.fillText('签名：',W-dw-80,H-dh-100);const dataUrl=c.toDataURL('image/png');const a=document.createElement('a');a.href=dataUrl;a.download='apology_card.png';a.click();if(audioChunks.length>0){const blob=new Blob(audioChunks,{type:'audio/wav'});const audioLocal=URL.createObjectURL(blob);const w=window.open('');w.document.title='下载';w.document.body.style.fontFamily='Segoe UI, Microsoft YaHei, Arial';const p1=w.document.createElement('p');p1.innerHTML=`<a href="${dataUrl}" download="apology_card.png">下载 PNG</a>`;const p2=w.document.createElement('p');p2.innerHTML=`<a href="${audioLocal}" download="apology_audio.wav">下载 WAV</a>`;w.document.body.appendChild(p1);w.document.body.appendChild(p2)}else{showToast('已生成 PNG')}};img.src=sigCanvas.toDataURL()})
+
+    function wrapText(ctx,text,maxWidth){const paras=text.split('\n');const out=[];for(const p of paras){let line='';for(const ch of p){line+=ch;if(ctx.measureText(line).width>maxWidth){out.push(line.slice(0,-1));line=ch}}if(line)out.push(line)}return out}
+
+    appealBtn.addEventListener('click',()=>{const ok=confirm('我承诺：\n1）每天认真听你10分钟并记录改进点\n2）连续30天写一句真心话给你\n3）遇到争执先冷静5秒\n\n确认？');if(ok){typeAndSpeak('谢谢你给我机会。我会用行动证明。');runConfetti(120)}else alert('我会继续想更真诚的方式')})
+    refuseBtn.addEventListener('mouseenter',()=>{anime({targets:refu=refuseBtn.parentElement,translateX:(Math.random()-0.5)*320,translateY:(Math.random()-0.5)*140,duration:420,easing:'easeOutExpo'})})
+    refuseBtn.addEventListener('click',()=>{alert('你真会玩——但我不会放弃改正自己的机会。')})
+
+    function runConfetti(n=80,rect){const root=$('fx');for(let i=0;i<n;i++){const el=document.createElement('div');const size=6+Math.random()*12;el.style.position='fixed';el.style.left=rect?(rect.left+Math.random()*rect.width)+'px':(Math.random()*100)+'%';el.style.top=rect?(rect.top+Math.random()*rect.height)+'px':'-10%';el.style.width=size+'px';el.style.height=(size*1.8)+'px';el.style.background=`hsl(${Math.floor(Math.random()*360)},70%,60%)`;el.style.borderRadius='2px';root.appendChild(el);animateDOM(el,{translateY:[0,window.innerHeight+200],rotate:Math.random()*720},1000+Math.random()*1000,()=>el.remove())}}
+    function animateDOM(el,props,duration,cb){const start=performance.now();function step(now){const p=Math.min(1,(now-start)/duration);const prog=ease(p,opts.easing||'linear');for(const t of targets){if(opts.translateX)t.style.transform=`translateX(${opts.translateX[0]+(opts.translateX[1]-opts.translateX[0])*prog}px) translateY(${opts.translateY?opts.translateY[0]+(opts.translateY[1]-opts.translateY[0])*prog:0}px)`;if(opts.opacity!==undefined)t.style.opacity=opts.opacity[0]+(opts.opacity[1]-opts.opacity[0])*prog; if(opts.rotate!==undefined)t.style.transform+=` rotate(${(opts.rotate[0]+(opts.rotate[1]-opts.rotate[0])*prog)}deg)`}if(p<1)requestAnimationFrame(step);else if(opts.complete)opts.complete()}requestAnimationFrame(step)}
+    function ease(p,name){if(name==='easeOutExpo')return(p===1)?1:1-Math.pow(2,-10*p);if(name==='easeOutCubic')return 1-Math.pow(1-p,3);return p}
+
+    (function boot(){apologyText=localStorage.getItem('apology_text_v2')||DEFAULT_TEXT;renderPreview();hearts=parseInt(localStorage.getItem('apology_hearts_v2')||'0',10);heartCountEl.textContent=hearts})()
+  </script>
+</body>
+</html>
